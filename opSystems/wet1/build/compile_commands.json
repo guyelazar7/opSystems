@@ -1,0 +1,17 @@
+[
+{
+  "directory": "C:/Users/Guy Elazar/Documents/opSystems/wet1/build",
+  "command": "C:\\TDM-GCC-32\\bin\\g++.exe   -g -std=gnu++14 -o CMakeFiles\\skeleton_smash.dir\\smash.cpp.obj -c \"C:\\Users\\Guy Elazar\\Documents\\opSystems\\wet1\\smash.cpp\"",
+  "file": "C:/Users/Guy Elazar/Documents/opSystems/wet1/smash.cpp"
+},
+{
+  "directory": "C:/Users/Guy Elazar/Documents/opSystems/wet1/build",
+  "command": "C:\\TDM-GCC-32\\bin\\g++.exe   -g -std=gnu++14 -o CMakeFiles\\skeleton_smash.dir\\Commands.cpp.obj -c \"C:\\Users\\Guy Elazar\\Documents\\opSystems\\wet1\\Commands.cpp\"",
+  "file": "C:/Users/Guy Elazar/Documents/opSystems/wet1/Commands.cpp"
+},
+{
+  "directory": "C:/Users/Guy Elazar/Documents/opSystems/wet1/build",
+  "command": "C:\\TDM-GCC-32\\bin\\g++.exe   -g -std=gnu++14 -o CMakeFiles\\skeleton_smash.dir\\signals.cpp.obj -c \"C:\\Users\\Guy Elazar\\Documents\\opSystems\\wet1\\signals.cpp\"",
+  "file": "C:/Users/Guy Elazar/Documents/opSystems/wet1/signals.cpp"
+}
+]
