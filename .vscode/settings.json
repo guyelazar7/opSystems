@@ -1,0 +1,7 @@
+{
+    "cmake.sourceDirectory": "/home/guyelazar7/opSystems/opSystems/wet1",
+    "files.associations": {
+        "string": "cpp",
+        "string_view": "cpp"
+    }
+}
