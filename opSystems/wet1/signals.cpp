@@ -12,11 +12,11 @@ void ctrlZHandler(int sig_num) {
   cout<<"smash: process "<< getpid() <<" was stopped"<<endl;
 }
 
-void ctrlCHandler(int sig_num) {
-  cout<<"smash: got ctrl-C"<<endl;
-  //kill(getpid(),SIGKILL);
-  cout<<"smash: process "<<getpid()<<" was killed"<<endl;
-}
+// void ctrlCHandler(int sig_num) {
+//   cout<<"smash: got ctrl-C"<<endl;
+//   //kill(getpid(),SIGKILL);
+//   cout<<"smash: process "<<getpid()<<" was killed"<<endl;
+// }
 
 void alarmHandler(int sig_num) {
   // TODO: Add your implementation

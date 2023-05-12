@@ -236,5 +236,4 @@ public:
   bool jobListIsEmpty() const;
   std::string getPrompt() const;
 };
-
 #endif //SMASH_COMMAND_H_
