@@ -49,9 +49,10 @@ class PipeCommand : public Command {
 
 
 class RedirectionCommand : public Command {
- // TODO: Add your data members
+  private:
+    bool appendFlag;
   public:
-    explicit RedirectionCommand(const char* cmd_line);
+    explicit RedirectionCommand(const char* cmd_line, bool toAppend = false);
     virtual ~RedirectionCommand() {}
     void execute() override;
     //void prepare() override;
@@ -171,7 +172,6 @@ class TimeoutCommand : public BuiltInCommand {
   void execute() override;
 };
 
-class SetCoreCommand : public Command{};
 class ChmodCommand : public Command {
  public:
   ChmodCommand(const char* cmd_line);
@@ -179,15 +179,14 @@ class ChmodCommand : public Command {
   void execute() override;
 };
 
-class GetFileTypeCommand : public BuiltInCommand {
-  // TODO: Add your data members
+class GetFileTypeCommand : public Command {
  public:
   GetFileTypeCommand(const char* cmd_line);
   virtual ~GetFileTypeCommand() {}
   void execute() override;
 };
 
-class SetcoreCommand : public BuiltInCommand {
+class SetcoreCommand : public Command {
   // TODO: Add your data members
  public:
   SetcoreCommand(const char* cmd_line);
