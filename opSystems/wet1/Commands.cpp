@@ -265,6 +265,7 @@ void JobsList::removeJobByProcessID(int pid){
 void JobsList::removeFinishedJobs(){
     if(jobsVector.empty()) return;
     for(int pid = waitpid(-1, NULL, WNOHANG); pid > 0; pid = waitpid(-1, NULL, WNOHANG)){
+        cout<<"pid of :"<< pid<<endl;;
         removeJobByProcessID(pid);
     }    
     maxJobId = jobsVector.empty() ? 0 : jobsVector.back()->getJobId();
