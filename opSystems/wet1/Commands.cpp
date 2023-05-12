@@ -9,6 +9,9 @@
 #include <iomanip>
 #include "Commands.h"
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -90,6 +93,11 @@ Command* SmallShell::CreateCommand(const char* cmd_line) {
   bool backGroundFlag = _isBackgroundComamnd(cmd_line);
   _removeBackgroundSign((char*)cmd_line);
   string cmd_s = _trim(string(cmd_line));
+
+  if(cmd_s.find(">") != string::npos){
+    return new RedirectionCommand(cmd_line, cmd_s.find(">>") != string::npos);
+  }
+
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
   if(firstWord.compare("chmod") == 0){
     return new ChmodCommand(cmd_line);
@@ -120,6 +128,12 @@ Command* SmallShell::CreateCommand(const char* cmd_line) {
   }
   else if(firstWord.compare("kill") == 0){
     return new KillCommand(cmd_line);
+  }
+  else if(firstWord.compare("getfiletype")==0){
+    return new GetFileTypeCommand(cmd_line);
+  }
+  else if(firstWord.compare("setcore")==0){
+    return new SetcoreCommand(cmd_line);
   }
   else {
     return new ExternalCommand(cmd_line, backGroundFlag, copy);
@@ -250,8 +264,9 @@ void JobsList::removeJobByProcessID(int pid){
 }
 void JobsList::removeFinishedJobs(){
     if(jobsVector.empty()) return;
-    for(int pid = waitpid(-1, NULL, WNOHANG); pid > 0; pid = waitpid(-1, NULL, WNOHANG))
+    for(int pid = waitpid(-1, NULL, WNOHANG); pid > 0; pid = waitpid(-1, NULL, WNOHANG)){
         removeJobByProcessID(pid);
+    }    
     maxJobId = jobsVector.empty() ? 0 : jobsVector.back()->getJobId();
 }
 int JobsList::JobEntry::getJobId() const{
@@ -342,7 +357,11 @@ KillCommand::KillCommand(const char* cmd_line) : BuiltInCommand(cmd_line){}
 
 ChmodCommand::ChmodCommand(const char* cmd_line) : Command(cmd_line){}
 
+GetFileTypeCommand::GetFileTypeCommand(const char* cmd_line) : Command(cmd_line){}
 
+SetcoreCommand::SetcoreCommand(const char* cmd_line) : Command(cmd_line){}
+
+RedirectionCommand::RedirectionCommand(const char* cmd_line, bool toAppend): Command(cmd_line), appendFlag(toAppend){}
 
 //----------------------------------------------execute:-----------------------------------------------------------------------//
 
@@ -515,6 +534,77 @@ void ChmodCommand::execute(){
   }
 }
 
+void GetFileTypeCommand::execute(){
+  if(numOfArgs!=2){
+    perror("smash error: gettype: invalid arguments");
+    return;
+  }
+  struct stat fileInfo;
+  if(stat(argv[1],&fileInfo) == -1){
+    perror("syscall failed\n");
+    return;
+  }
+  cout << argv[1] << "'s type is \"";
+  mode_t temp = fileInfo.st_mode & S_IFMT;
+  if(temp == S_IFREG) cout<<"regular file";
+  else if(temp == S_IFDIR) cout<<"directory";
+  else if(temp == S_IFCHR) cout<<"character device";
+  else if(temp == S_IFBLK) cout<<"block device";
+  else if(temp == S_IFIFO) cout<<"FIFO";
+  else if(temp == S_IFLNK) cout<<"symobic link";
+  else if(temp == S_IFSOCK) cout<<"socket";
+
+  cout<<"\" and takes up " << fileInfo.st_size << " bytes" << endl;
+  
+}
+
+void SetcoreCommand::execute(){
+  if(numOfArgs != 3){
+    perror("smash error: setcore: invalid arguments");
+    return;
+  }
+
+  
+  int jobid = stoi(argv[1]);
+  int coreNum = stoi(argv[2]);
+  if (coreNum>=sysconf(_SC_NPROCESSORS_CONF)||coreNum<0)
+  {
+    perror("smash error: setcore: invalid core number");
+  }
+  JobsList::JobEntry * jobPtr = SmallShell::getInstance().getJobByID(jobid);
+  if(jobPtr == nullptr){
+    perror("smash error: setcore: job-id ");
+    perror(argv[1]);
+    perror(" does not exist\n");
+    return;
+  }
+  int pid = jobPtr->getPID();
+  cpu_set_t cpu;
+  CPU_SET(coreNum,&cpu);
+  if(sched_setaffinity(pid, sizeof(cpu_set_t),&cpu)==-1){
+      perror("smash error: setcore: invalid core number");
+  }
+}
+
+void RedirectionCommand::execute(){
+  int fd;
+  if(appendFlag){
+    fd = open(argv[2],O_WRONLY,O_APPEND|O_CREAT);
+    freopen(argv[2], "a", stdout);
+  }
+  else{
+    fd = open(argv[2],O_WRONLY,O_CREAT);
+    freopen(argv[2], "w", stdout);
+  }
+  Command* cmdPtr = SmallShell::getInstance().CreateCommand(argv[0]);
+  cmdPtr->execute();
+  freopen("/dev/tty", "w", stdout);
+  close(fd);
+}
+
+void PipeCommand::execute(){
+
+}
 void ExternalCommand::execute(){
   int pid = fork();
   if(pid == -1){
@@ -527,10 +617,9 @@ void ExternalCommand::execute(){
       perror("execv failed");
   }
   else{
+    SmallShell::getInstance().addJob(this, pid);
     if(!backGroundFlag)
       wait(NULL);
-    else
-      SmallShell::getInstance().addJob(this, pid);
   }
 }
 

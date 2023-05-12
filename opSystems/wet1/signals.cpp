@@ -9,15 +9,15 @@ using namespace std;
 
 void ctrlZHandler(int sig_num) {
 	cout<<"smash: got ctrl-Z"<<endl;
-  int pid = getpid();
-  cout<<"smash: process "<< pid <<" was stopped"<<endl;
+  cout<<"smash: process "<< getpid() <<" was stopped"<<endl;
 }
 
 void ctrlCHandler(int sig_num) {
-  // TODO: Add your implementation
+  cout<<"smash: got ctrl-C"<<endl;
+  //kill(getpid(),SIGKILL);
+  cout<<"smash: process "<<getpid()<<" was killed"<<endl;
 }
 
 void alarmHandler(int sig_num) {
   // TODO: Add your implementation
 }
-
