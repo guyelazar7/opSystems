@@ -263,10 +263,19 @@ void JobsList::removeJobByProcessID(int pid){
     }
 }
 void JobsList::removeFinishedJobs(){
-    if(jobsVector.empty()) return;
+    if(jobsVector.empty()){
+      return;
+    }
     for(int pid = waitpid(-1, NULL, WNOHANG); pid > 0; pid = waitpid(-1, NULL, WNOHANG)){
-        cout<<"pid of :"<< pid<<endl;;
         removeJobByProcessID(pid);
+    }    
+    for(list<JobEntry*>::reverse_iterator it = jobsVector.rbegin(); 
+        it != jobsVector.rend();){
+         if(kill((*it)->getPID(),0)!=0){
+            it = list<JobEntry*>::reverse_iterator(jobsVector.erase(next(it).base()));
+         }
+         else
+          ++it;
     }    
     maxJobId = jobsVector.empty() ? 0 : jobsVector.back()->getJobId();
 }
