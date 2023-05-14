@@ -40,9 +40,11 @@ class ExternalCommand : public Command {
 };
 
 class PipeCommand : public Command {
-  // TODO: Add your data members
+  bool errorFlag;
+  Command* command1Ptr;
+  Command* command2Ptr;
   public:
-    PipeCommand(const char* cmd_line);
+    PipeCommand(const char* cmd_line, bool errorPipe);
     virtual ~PipeCommand() {}
     void execute() override;
 };
@@ -136,7 +138,7 @@ class JobsList{
     JobEntry *getMaxIdJob();
     bool isEmpty()const;
     void quitCmd();
-    // TODO: Add extra methods or modify exisitng ones as needed
+    int getLastJobsPID() const;
   };
 
 class JobsCommand : public BuiltInCommand {
@@ -208,6 +210,8 @@ private:
   JobsList* jobsListPtr;
   char* previousWD;
   int numOfProcesses;
+  int mostRecentPID;
+  ExternalCommand* mostRecentCmd;
   SmallShell();
 public:
   void updatePreviousWD(char* newPath);
@@ -235,5 +239,10 @@ public:
   void addJob(ExternalCommand* cmd, int pid);
   bool jobListIsEmpty() const;
   std::string getPrompt() const;
+  void setMostRecentPID(int pid);
+  int getMostRecentPID() const;
+  void SetMostRecentCommand(ExternalCommand* cmdPtr);
+  ExternalCommand* getMostRecentCommand() const;
+  int getLastJobsPID() const;
 };
 #endif //SMASH_COMMAND_H_

@@ -83,7 +83,8 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-SmallShell::SmallShell() :prompt("smash"), jobsListPtr(new JobsList()), previousWD(NULL), numOfProcesses(0){}
+SmallShell::SmallShell() :prompt("smash"), jobsListPtr(new JobsList()), previousWD(NULL), numOfProcesses(0), 
+            mostRecentPID(-1), mostRecentCmd(nullptr){}
 
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
@@ -96,6 +97,9 @@ Command* SmallShell::CreateCommand(const char* cmd_line) {
 
   if(cmd_s.find(">") != string::npos){
     return new RedirectionCommand(cmd_line, cmd_s.find(">>") != string::npos);
+  }
+  if(cmd_s.find("|") != string::npos){
+    return new PipeCommand(cmd_line, cmd_s.find("|&") != string::npos);
   }
 
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
@@ -153,6 +157,23 @@ string SmallShell::getPrompt() const{
   return prompt;
 }
 
+void SmallShell::setMostRecentPID(int pid){
+  mostRecentPID = pid;
+}
+int SmallShell::getMostRecentPID() const{
+  return mostRecentPID;
+}
+void SmallShell::SetMostRecentCommand(ExternalCommand* cmdPtr){
+  mostRecentCmd = cmdPtr;
+}
+ExternalCommand* SmallShell::getMostRecentCommand() const{
+  return mostRecentCmd;
+}
+
+int SmallShell::getLastJobsPID() const{
+  if(jobListIsEmpty()) return 0;
+  return jobsListPtr->getLastJobsPID();
+}
 //-----------------------------------our smash functions-------------------------//
 
 void SmallShell::setPrompt(const string &newPrompt){
@@ -325,6 +346,10 @@ void JobsList::JobEntry::stop(){
 void JobsList::JobEntry::continueJob(){
   stoppedFlag = false;
 }
+
+int JobsList::getLastJobsPID() const{
+  return jobsVector.back()->getPID();
+}
 //----------------------------------------------commandctors:-----------------------------------------------------------------------//
 
 Command::Command(const char* cmd_line) : argv(new char*[1 + COMMAND_MAX_ARGS]){
@@ -345,7 +370,13 @@ BuiltInCommand::BuiltInCommand (const char* cmd_line) : Command (cmd_line){
 ExternalCommand::ExternalCommand(const char* cmd_line, bool bgFlag, const string& copy) : Command(cmd_line),
                   backGroundFlag(bgFlag), original(copy){}
 
-//PipeCommand::PipeCommand(const char* cmd_line) : Command(cmd_line){}
+PipeCommand::PipeCommand(const char* cmd_line, bool errorPipe): Command(cmd_line), errorFlag(errorPipe){
+  string cmd(cmd_line);
+  int position = cmd.find_first_of('|');
+  command1Ptr = SmallShell::getInstance().CreateCommand(cmd.substr(0,position).c_str());
+  int offset = 1 + (int) errorFlag;
+  command2Ptr = SmallShell::getInstance().CreateCommand(cmd.substr(position + offset).c_str());
+}
 
 ChPromptCommand::ChPromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line){}
 
@@ -373,6 +404,7 @@ SetcoreCommand::SetcoreCommand(const char* cmd_line) : Command(cmd_line){}
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line, bool toAppend): Command(cmd_line), appendFlag(toAppend){}
 
+
 //----------------------------------------------execute:-----------------------------------------------------------------------//
 
 
@@ -385,7 +417,7 @@ void ChPromptCommand::execute(){ // done
   }
 }
 void ShowPidCommand::execute() { //done
-    cout<<getpid()<<endl;
+    cout<<"smash pid is "<<getpid()<<endl;
 }
 void GetCurrDirCommand::execute(){ // done
     char temp[100];
@@ -613,18 +645,83 @@ void RedirectionCommand::execute(){
 }
 
 void PipeCommand::execute(){
-
+  int my_pipe[2];
+  if(pipe(my_pipe) == -1){
+    perror("smash error: pipe failed");
+    return;
+  }
+  int pid2;
+  int pid = fork();
+  if(pid == -1){
+    perror("smash error: fork failed");
+    return;
+  }
+  else if (pid == 0) { // son
+    setpgrp();
+    if(dup2(my_pipe[1], 1 + (int)errorFlag) == -1){
+      perror("smash error: dup2 failed");
+      return;
+    }
+    if(close(my_pipe[0]) == -1){
+      perror("smash error: close failed");
+      return;
+    }
+    command1Ptr->execute();
+    exit(0);
+  }
+  else { // father
+    pid2 = fork();
+    if(pid2 == -1){
+      perror("smash error: fork failed");
+      return;
+    }
+    else if(pid2 == 0){
+      if(dup2(my_pipe[0], 0) == -1){
+      perror("smash error: dup2 failed");
+      return;
+      }
+      if(close(my_pipe[1]) == -1){
+        perror("smash error: close failed");
+        return;
+      }
+      command2Ptr->execute();
+      exit(0);
+    }
+  }
+  if(close(my_pipe[0]) == -1){
+    perror("smash error: close failed");
+    return;
+  }
+  if(close(my_pipe[1]) == -1){
+    perror("smash error: close failed");
+    return;
+  }
+  waitpid(pid, NULL, WUNTRACED);
+  waitpid(pid2, NULL, WUNTRACED);
 }
+
 void ExternalCommand::execute(){
+
   int pid = fork();
   if(pid == -1){
     perror("fork failed");
     //exit();
   }
   else if(pid == 0){
-    strcpy(argv[0], (string("/bin/") + string(argv[0])).c_str());
-    if(execv(argv[0], argv) == -1)
-      perror("execv failed");
+    setpgrp();
+    size_t position = original.find("*?",0,1);
+    if(position != string::npos){
+       char* const argsForBash[] = {strdup("/bin/bash"), strdup("-c"), (char*)(_trim(original).c_str()), NULL};
+      if(execvp(argsForBash[0],argsForBash) == -1){
+        perror("smash error: bash failed");
+        return;
+      }
+    }
+    else{
+      strcpy(argv[0], (string("/bin/") + string(argv[0])).c_str());
+      if(execv(argv[0], argv) == -1)
+        perror("execv failed");
+    }
   }
   else{
     SmallShell::getInstance().addJob(this, pid);
