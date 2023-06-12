@@ -37,6 +37,7 @@ class ExternalCommand : public Command {
     void execute() override;
     virtual void printName() const;
     int getPID() const;
+    void printOriginal();
 };
 
 class PipeCommand : public Command {
@@ -53,6 +54,8 @@ class PipeCommand : public Command {
 class RedirectionCommand : public Command {
   private:
     bool appendFlag;
+    Command* command;
+    std::string fileName;
   public:
     explicit RedirectionCommand(const char* cmd_line, bool toAppend = false);
     virtual ~RedirectionCommand() {}
@@ -110,6 +113,8 @@ class JobsList{
             int getPID() const;
             void stop();
             void continueJob();
+            void printOriginalLine();
+            ExternalCommand* getCmd(){return cmdPtr;}
         private:
           ExternalCommand* cmdPtr;
           int jobId;
@@ -139,6 +144,9 @@ class JobsList{
     bool isEmpty()const;
     void quitCmd();
     int getLastJobsPID() const;
+    void removeJobByID(int pid);
+    JobEntry* getJobByPID(int pid);
+    JobEntry* getJobByCmd(ExternalCommand* cmd);
   };
 
 class JobsCommand : public BuiltInCommand {
@@ -166,10 +174,11 @@ class BackgroundCommand : public BuiltInCommand {
 };
 
 class TimeoutCommand : public BuiltInCommand {
-/* Bonus */
-// TODO: Add your data members
- public:
-  explicit TimeoutCommand(const char* cmd_line);
+private:
+  const std::string original;
+  bool bgFlag;
+public:
+  explicit TimeoutCommand(const char* cmd_line, const std::string& og, bool bg);
   virtual ~TimeoutCommand() {}
   void execute() override;
 };
@@ -212,6 +221,7 @@ private:
   int numOfProcesses;
   int mostRecentPID;
   ExternalCommand* mostRecentCmd;
+  bool fgFlag;
   SmallShell();
 public:
   void updatePreviousWD(char* newPath);
@@ -244,5 +254,9 @@ public:
   void SetMostRecentCommand(ExternalCommand* cmdPtr);
   ExternalCommand* getMostRecentCommand() const;
   int getLastJobsPID() const;
+  bool getFgFlag(){ return fgFlag;}
+  void setFgFlag(bool b){ fgFlag = b;}
+  void removeJobByID(int pid);
+  JobsList::JobEntry* getFgJob();
 };
 #endif //SMASH_COMMAND_H_
